@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>RICHELIEU // TAPE DECK BLOG</title>
+  <link rel="icon" href="/avatar.jpg" />
+  <link rel="stylesheet" href="/styles.css" />
+</head>
+<body>
+  <div class="shell">
+    <header class="topbar">
+      <div class="brand">
+        <span class="pwr-led"></span>
+        <span>UNIT: RICHELIEU-BLOG // REV.04</span>
+      </div>
+      <nav class="nav-slots">
+        <button class="btn active" data-nav="index">[01:INDEX]</button>
+        <button class="btn" data-nav="about">[02:ABOUT]</button>
+        <button class="btn" id="btn-search">[SEARCH ^K]</button>
+        <button class="btn" id="btn-sfx">[SFX: OFF]</button>
+        <button class="btn" id="btn-theme">[MODE: AUTO]</button>
+        <span class="wx-badge" id="wx-badge" title="当地天气与代理检测">[WX: --°C]</span>
+      </nav>
+    </header>
+
+    <main id="app-root"></main>
+
+    <footer class="footer-bar">
+      <div>
+        <span>SYS://RICHELIEU-CASSETTE.COM // WORKERS_D1</span>
+        <span id="status-mode" style="margin-left:12px;">THEME: AMBER_CRT</span>
+      </div>
+      <!-- 在下方修改你的联系方式链接地址 (href) -->
+      <div class="contact-links">
+        <a class="btn" href="mailto:richelieu.alterego@gmail.com">[EMAIL]</a>
+        <a class="btn" href="https://t.me/lastriteicey" target="_blank" rel="noopener">[TELEGRAM]</a>
+        <a class="btn" href="https://x.com/richelieu_ego" target="_blank" rel="noopener">[X]</a>
+        <a class="btn" href="https://matrix.to/#/@richelieu.alterego:mozilla.org" target="_blank" rel="noopener">[ELEMENT]</a>
+        <a class="btn" href="https://github.com/richelieu-alterego" target="_blank" rel="noopener">[GITHUB]</a>
+      </div>
+    </footer>
+  </div>
+
+  <div class="modal-backdrop" id="search-modal">
+    <div class="modal-box">
+      <div class="panel-head">
+        <span>TERMINAL_SEARCH // CTRL+K</span>
+        <button class="btn" id="btn-close-search">[ESC]</button>
+      </div>
+      <input class="modal-input" id="search-input" type="text" placeholder="> 输入关键词检索磁带..." />
+      <div class="modal-results" id="search-results"></div>
+    </div>
+  </div>
+
+  <script src="/app.js"></script>
+</body>
+</html>

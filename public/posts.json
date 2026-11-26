@@ -1,0 +1,30 @@
+[
+  {
+    "id": "tape-001",
+    "title": "磁带未来主义与静态博客的重构笔记",
+    "date": "2026-11-26",
+    "tags": [
+      "DESIGN",
+      "CSS",
+      "CLOUDFLARE"
+    ],
+    "summary": "用 70-80 年代模拟工业硬件与 CRT 终端语言重构个人博客，并预留 Cloudflare Workers 动态边缘接口。",
+    "words": 412,
+    "readMin": 2,
+    "body": "## 01. 视觉基调\n\n磁带未来主义（Cassette Futurism）的核心是**克制的秩序感**与**模拟硬件触感**：\n\n> 好的工业设计不是堆砌特效，而是让每个像素都像一块真实的物理面板。\n\n本博客默认采用 **AMBER_CRT** 琥珀暗色模式，同时也支持一键切换至 **RETRO_PAPER** 复古米白工业说明书模式。\n\n## 02. 为什么接入 Cloudflare Workers\n\n静态资产（HTML/CSS/JS）由 Cloudflare 全球边缘节点直接分发，几乎零延迟；同时 `src/worker.js` 预留了 `/api/*` 路由，未来可以无缝扩展：\n\n```javascript\n// 未来可直接接入 Stripe Checkout 或国内支付回调\nif (url.pathname === \"/api/checkout\" && request.method === \"POST\") {\n  // 调用 Stripe API（密钥存放在 Cloudflare Secrets）\n}\n```"
+  },
+  {
+    "id": "tape-002",
+    "title": "本地自动化工具与桌面工作流实验",
+    "date": "2026-11-18",
+    "tags": [
+      "PYTHON",
+      "MCP",
+      "LAB"
+    ],
+    "summary": "从零搭建基于 MCP 协议与 Windows UI Automation 的桌面辅助工具链，减少重复操作与 Token 消耗。",
+    "words": 256,
+    "readMin": 1,
+    "body": "## 01. 从截图到 UI Automation\n\n早期通过全屏截图识图定位窗口虽然通用，但速度慢且消耗大量视觉 Token。改用 Windows 原生 `UIAutomation` 后，可以直接以纯文本枚举窗口和控件坐标。\n\n## 02. 架构要点\n\n- **轻量 MCP Server**：基于 Python `FastMCP` 暴露 `list_windows`、`focus_window`、`get_ui_elements` 等工具。\n- **DPI 感知**：调用 `SetProcessDpiAwareness(1)` 确保高分屏下坐标与物理像素严格对齐。"
+  }
+]

@@ -1,0 +1,22 @@
+{
+  "unit": "RICHELIEU-BLOG // REV.04",
+  "title": "RICHELIEU // TAPE DECK BLOG",
+  "footer": "SYS://RICHELIEU-CASSETTE.COM // WORKERS_D1",
+  "turnstileSiteKey": "",
+  "operator": {
+    "name": "黎塞留",
+    "id": "richelieu.alterego",
+    "avatar": "/avatar.jpg",
+    "status": "ONLINE",
+    "bio": "记录代码、系统折腾与思考的数字磁带归档站。"
+  },
+  "categories": [
+    { "tag": "ALL", "label": "全部磁带" },
+    { "tag": "DESIGN", "label": "设计语言" },
+    { "tag": "CSS", "label": "样式工程" },
+    { "tag": "CLOUDFLARE", "label": "边缘计算" },
+    { "tag": "PYTHON", "label": "Python" },
+    { "tag": "MCP", "label": "MCP 工具" },
+    { "tag": "LAB", "label": "实验室" }
+  ]
+}
