@@ -66,9 +66,37 @@ function applyTheme() {
   status.textContent = `THEME: ${actual === "paper" ? "RETRO_PAPER" : "AMBER_CRT"}${proxyTag}`;
 }
 
+const TZ_COORDS = {
+  "Asia/Shanghai": { city: "Shanghai", lat: 31.23, lon: 121.47 },
+  "Asia/Chongqing": { city: "Chongqing", lat: 29.56, lon: 106.55 },
+  "Asia/Urumqi": { city: "Urumqi", lat: 43.82, lon: 87.61 },
+  "Asia/Hong_Kong": { city: "Hong Kong", lat: 22.32, lon: 114.17 },
+  "Asia/Taipei": { city: "Taipei", lat: 25.03, lon: 121.56 },
+  "Asia/Tokyo": { city: "Tokyo", lat: 35.68, lon: 139.69 },
+  "Asia/Seoul": { city: "Seoul", lat: 37.57, lon: 126.98 },
+  "America/Los_Angeles": { city: "Los Angeles", lat: 34.05, lon: -118.24 },
+  "America/New_York": { city: "New York", lat: 40.71, lon: -74.01 },
+  "Europe/London": { city: "London", lat: 51.51, lon: -0.13 },
+};
+
+async function fetchWeatherText(lat, lon, label) {
+  const r = await fetch(`/api/weather?lat=${lat}&lon=${lon}`).catch(() => null);
+  let wd = r && r.ok ? await r.json() : null;
+  if (!wd || wd.temperature == null) {
+    const wr = await fetch(
+      `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current_weather=true`
+    ).catch(() => null);
+    if (wr && wr.ok) {
+      const raw = await wr.json();
+      wd = { temperature: raw.current_weather?.temperature };
+    }
+  }
+  return wd && wd.temperature != null ? `[WX: ${wd.temperature}°C // ${label}]` : `[WX: ${label}]`;
+}
+
 async function initGeoAndWeather() {
   const wxEl = document.getElementById("wx-badge");
-  const localTz = Intl.DateTimeFormat().resolvedOptions().timeZone || "";
+  const localTz = Intl.DateTimeFormat().resolvedOptions().timeZone || "Asia/Shanghai";
   let geo = null;
 
   try {
@@ -79,54 +107,46 @@ async function initGeoAndWeather() {
     }
   } catch {}
 
-  if (!geo) {
-    try {
-      const r = await fetch("https://ipwho.is/?lang=zh-CN");
-      if (r.ok) {
-        const d = await r.json();
-        if (d && d.success !== false) {
-          geo = {
-            city: d.city || d.country || "",
-            timezone: (d.timezone && d.timezone.id) || "",
-            latitude: d.latitude,
-            longitude: d.longitude,
-          };
-        }
-      }
-    } catch {}
+  const isProxy = Boolean(geo && geo.timezone && localTz && geo.timezone !== localTz);
+  let lat = geo?.latitude;
+  let lon = geo?.longitude;
+  let cityLabel = geo?.city || localTz.split("/").pop() || "LOCAL";
+
+  // If proxy detected, do NOT use proxy's IP location; use real timezone coords first
+  if (isProxy || lat == null || lon == null) {
+    const fallback = TZ_COORDS[localTz] || { city: localTz.split("/").pop() || "LOCAL", lat: 31.23, lon: 121.47 };
+    lat = fallback.lat;
+    lon = fallback.lon;
+    cityLabel = fallback.city;
   }
 
-  if (geo) {
-    const isProxy = Boolean(geo.timezone && localTz && geo.timezone !== localTz);
-    state.geo = {
-      city: geo.city || "LOCAL",
-      timezone: geo.timezone,
-      proxy: isProxy,
-      lat: geo.latitude,
-      lon: geo.longitude,
-    };
-    applyTheme();
+  state.geo = { city: cityLabel, timezone: localTz, proxy: isProxy, lat, lon };
+  applyTheme();
 
-    if (geo.latitude != null && geo.longitude != null) {
-      try {
-        const wr = await fetch(
-          `https://api.open-meteo.com/v1/forecast?latitude=${geo.latitude}&longitude=${geo.longitude}&current_weather=true`
+  wxEl.textContent = await fetchWeatherText(lat, lon, cityLabel);
+  wxEl.style.cursor = "pointer";
+  wxEl.title = isProxy
+    ? `检测到代理 (IP时区: ${geo.timezone}，本机时区: ${localTz})，已按本机时区定位 ${cityLabel}；点击可授权浏览器精确定位`
+    : `点击可授权浏览器精确定位`;
+
+  wxEl.onclick = () => {
+    if (!navigator.geolocation) return;
+    wxEl.textContent = "[WX: LOCATING...]";
+    navigator.geolocation.getCurrentPosition(
+      async (pos) => {
+        const { latitude, longitude } = pos.coords;
+        wxEl.textContent = await fetchWeatherText(
+          latitude.toFixed(2),
+          longitude.toFixed(2),
+          "GPS"
         );
-        if (wr.ok) {
-          const wd = await wr.json();
-          const temp = wd.current_weather?.temperature;
-          const cityLabel = isProxy ? `${state.geo.city}*(PROXY)` : state.geo.city;
-          wxEl.textContent = `[WX: ${temp ?? "--"}°C // ${cityLabel}]`;
-          wxEl.title = isProxy
-            ? `检测到代理/时区不一致 (本机: ${localTz}, IP: ${geo.timezone})，已优先采用本机时钟`
-            : `本机与IP时区一致 (${localTz})`;
-          return;
-        }
-      } catch {}
-    }
-  }
-
-  wxEl.textContent = `[WX: LOCAL // ${localTz.split("/").pop() || "SYS"}]`;
+      },
+      () => {
+        wxEl.textContent = `[WX: ${cityLabel}]`;
+      },
+      { timeout: 6000 }
+    );
+  };
 }
 
 function mdToHtml(md) {
@@ -142,7 +162,7 @@ function mdToHtml(md) {
   html = html
     .replace(/^## (.+)$/gm, (_, t) => `<h2 id="${encodeURIComponent(t)}">${t}</h2>`)
     .replace(/^### (.+)$/gm, "<h3>$1</h3>")
-    .replace(/^> (.+)$/gm, "<blockquote>$1</blockquote>")
+    .replace(/^&gt; (.+)$/gm, "<blockquote>$1</blockquote>")
     .replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>")
     .replace(/`([^`]+)`/g, '<code class="mono" style="background:var(--panel-alt);padding:1px 5px;">$1</code>')
     .replace(/\n\n+/g, "</p><p>");
@@ -284,9 +304,11 @@ function renderPost() {
         <section class="comments-section">
           <div class="section-label">== COMMENTS // 终端留言区 (D1) ======================</div>
           <form class="comment-form" id="comment-form">
+            <input type="text" id="c-website" style="display:none;" tabindex="-1" autocomplete="off" />
             <input class="comment-input" id="c-author" type="text" maxlength="32" placeholder="> 昵称 / CALLSIGN (默认 ANON_USER)" />
             <textarea class="comment-textarea" id="c-content" rows="3" maxlength="1000" placeholder="> 输入留言内容..." required></textarea>
-            <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;">
+            <div id="turnstile-box"></div>
+            <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;">
               <span class="mono" id="c-status" style="font-size:12px;color:var(--muted);">READY</span>
               <button class="btn" type="submit">[TRANSMIT // 发送留言]</button>
             </div>
@@ -319,7 +341,11 @@ function renderPost() {
     };
   });
   loadComments(post.id);
-  document.getElementById("comment-form").onsubmit = (e) => submitComment(e, post.id);
+  const formLoadedAt = Date.now();
+  if (state.config.turnstileSiteKey && window.turnstile) {
+    window.turnstile.render("#turnstile-box", { sitekey: state.config.turnstileSiteKey });
+  }
+  document.getElementById("comment-form").onsubmit = (e) => submitComment(e, post.id, formLoadedAt);
 }
 
 function escapeHtml(s) {
@@ -352,19 +378,28 @@ async function loadComments(postId) {
   }
 }
 
-async function submitComment(e, postId) {
+async function submitComment(e, postId, formLoadedAt) {
   e.preventDefault();
   playClick();
   const statusEl = document.getElementById("c-status");
+  const website = document.getElementById("c-website")?.value || "";
   const author = document.getElementById("c-author").value.trim();
   const content = document.getElementById("c-content").value.trim();
+  const turnstileToken = document.querySelector('[name="cf-turnstile-response"]')?.value || "";
   if (!content) return;
   statusEl.textContent = "TRANSMITTING...";
   try {
     const r = await fetch("/api/comments", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ postId, author, content }),
+      body: JSON.stringify({
+        postId,
+        author,
+        content,
+        website,
+        elapsedMs: Date.now() - (formLoadedAt || 0),
+        turnstileToken,
+      }),
     });
     const data = await r.json();
     if (!r.ok) {
