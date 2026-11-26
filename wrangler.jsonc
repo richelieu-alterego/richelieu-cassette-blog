@@ -1,0 +1,16 @@
+{
+  "name": "richelieu-cassette-blog",
+  "main": "src/worker.js",
+  "compatibility_date": "2026-11-26",
+  "assets": {
+    "directory": "./public",
+    "binding": "ASSETS"
+  },
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "richelieu-comments",
+      "database_id": "1f506258-b388-4733-b018-b01f0d9d3d76"
+    }
+  ]
+}
