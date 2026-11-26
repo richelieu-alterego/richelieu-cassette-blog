@@ -3,6 +3,7 @@
   "title": "RICHELIEU // TAPE DECK BLOG",
   "footer": "SYS://RICHELIEU-CASSETTE.COM // WORKERS_D1",
   "turnstileSiteKey": "",
+  "enableEmailOtp": false,
   "operator": {
     "name": "黎塞留",
     "id": "richelieu.alterego",
