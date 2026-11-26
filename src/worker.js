@@ -29,6 +29,19 @@ export default {
       });
     }
 
+    // 1c. Server-side weather proxy (avoids client-side timeout/CORS)
+    if (url.pathname === "/api/weather") {
+      const lat = url.searchParams.get("lat");
+      const lon = url.searchParams.get("lon");
+      if (!lat || !lon) return Response.json({ error: "Missing lat/lon" }, { status: 400 });
+      const wr = await fetch(
+        `https://api.open-meteo.com/v1/forecast?latitude=${encodeURIComponent(lat)}&longitude=${encodeURIComponent(lon)}&current_weather=true`
+      );
+      if (!wr.ok) return Response.json({ error: "Weather upstream error" }, { status: 502 });
+      const wd = await wr.json();
+      return Response.json({ temperature: wd.current_weather?.temperature ?? null });
+    }
+
     // 2. Comments API (Cloudflare D1 + optional Turnstile)
     if (url.pathname === "/api/comments") {
       if (!env.DB) {
@@ -62,8 +75,27 @@ export default {
         const postId = String(body.postId || "").trim().slice(0, 64);
         const author = String(body.author || "").trim().slice(0, 32) || "ANON_USER";
         const content = String(body.content || "").trim().slice(0, 1000);
+        const honeypot = String(body.website || "").trim();
+        const elapsedMs = Number(body.elapsedMs || 0);
+
+        if (honeypot) {
+          return Response.json({ error: "Spam rejected" }, { status: 403 });
+        }
+        if (elapsedMs > 0 && elapsedMs < 10000) {
+          return Response.json({ error: "Too fast; please wait 10 seconds." }, { status: 429 });
+        }
         if (!postId || !content) {
           return Response.json({ error: "postId and content are required" }, { status: 400 });
+        }
+
+        // Duplicate content guard within the same post
+        const dup = await env.DB.prepare(
+          "SELECT id FROM comments WHERE post_id = ? AND content = ? LIMIT 1"
+        )
+          .bind(postId, content)
+          .first();
+        if (dup) {
+          return Response.json({ error: "Duplicate comment rejected" }, { status: 409 });
         }
 
         if (env.TURNSTILE_SECRET_KEY) {
