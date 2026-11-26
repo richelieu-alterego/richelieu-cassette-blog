@@ -1,9 +1,11 @@
 const state = {
   posts: [],
+  user: null,
   config: {
     unit: "RICHELIEU-BLOG // REV.04",
     title: "RICHELIEU // TAPE DECK BLOG",
     footer: "SYS://RICHELIEU-CASSETTE.COM // WORKERS_D1",
+    enableEmailOtp: false,
     operator: {
       name: "黎塞留",
       id: "richelieu.alterego",
@@ -302,10 +304,34 @@ function renderPost() {
         </div>
 
         <section class="comments-section">
-          <div class="section-label">== COMMENTS // 终端留言区 (D1) ======================</div>
-          <form class="comment-form" id="comment-form">
+          <div class="section-label">== COMMENTS // 终端留言区 (D1 + AUTH) ===============</div>
+          <div id="auth-gate" style="margin-bottom:14px;">
+            ${
+              state.user
+                ? `<div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;padding:8px 10px;border:1.5px solid var(--border);background:var(--panel-alt);">
+                    <span class="mono" style="font-size:12px;color:var(--accent-2);">AUTH_VERIFIED: @${escapeHtml(state.user.nickname)}</span>
+                    <button class="btn" type="button" id="btn-logout">[LOGOUT // 退出]</button>
+                  </div>`
+                : `<div style="padding:12px;border:1.5px dashed var(--border);background:var(--panel-alt);">
+                    <div class="mono" style="font-size:12px;margin-bottom:10px;color:var(--muted);">需完成身份认证后方可发送留言（防止垃圾信息）：</div>
+                    <div style="display:flex;gap:8px;flex-wrap:wrap;">
+                      <a class="btn" href="/api/auth/github">[LOGIN WITH GITHUB // GitHub 登录]</a>
+                      <button class="btn" type="button" id="btn-otp-toggle" style="${state.config.enableEmailOtp ? "" : "display:none;"}">[EMAIL OTP // 邮箱验证码]</button>
+                    </div>
+                    <!-- 预留邮箱 OTP 登录面板，默认隐藏 -->
+                    <div id="otp-panel" style="display:none;margin-top:10px;gap:8px;flex-direction:column;">
+                      <input class="comment-input" id="otp-email" type="email" placeholder="> 输入邮箱地址..." />
+                      <div style="display:flex;gap:8px;">
+                        <input class="comment-input" id="otp-code" type="text" maxlength="6" placeholder="> 6位验证码" />
+                        <button class="btn" type="button" id="btn-otp-send">[SEND_CODE]</button>
+                        <button class="btn" type="button" id="btn-otp-verify">[VERIFY]</button>
+                      </div>
+                    </div>
+                  </div>`
+            }
+          </div>
+          <form class="comment-form" id="comment-form" style="${state.user ? "" : "display:none;"}">
             <input type="text" id="c-website" style="display:none;" tabindex="-1" autocomplete="off" />
-            <input class="comment-input" id="c-author" type="text" maxlength="32" placeholder="> 昵称 / CALLSIGN (默认 ANON_USER)" />
             <textarea class="comment-textarea" id="c-content" rows="3" maxlength="1000" placeholder="> 输入留言内容..." required></textarea>
             <div id="turnstile-box"></div>
             <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;">
@@ -342,10 +368,30 @@ function renderPost() {
   });
   loadComments(post.id);
   const formLoadedAt = Date.now();
-  if (state.config.turnstileSiteKey && window.turnstile) {
+  const logoutBtn = document.getElementById("btn-logout");
+  if (logoutBtn) {
+    logoutBtn.onclick = async () => {
+      playClick();
+      await fetch("/api/auth/logout", { method: "POST" }).catch(() => null);
+      state.user = null;
+      renderPost();
+    };
+  }
+  const otpToggle = document.getElementById("btn-otp-toggle");
+  if (otpToggle) {
+    otpToggle.onclick = () => {
+      playClick();
+      const p = document.getElementById("otp-panel");
+      if (p) p.style.display = p.style.display === "none" ? "flex" : "none";
+    };
+  }
+  if (state.user && state.config.turnstileSiteKey && window.turnstile) {
     window.turnstile.render("#turnstile-box", { sitekey: state.config.turnstileSiteKey });
   }
-  document.getElementById("comment-form").onsubmit = (e) => submitComment(e, post.id, formLoadedAt);
+  const formEl = document.getElementById("comment-form");
+  if (formEl) {
+    formEl.onsubmit = (e) => submitComment(e, post.id, formLoadedAt);
+  }
 }
 
 function escapeHtml(s) {
@@ -383,7 +429,6 @@ async function submitComment(e, postId, formLoadedAt) {
   playClick();
   const statusEl = document.getElementById("c-status");
   const website = document.getElementById("c-website")?.value || "";
-  const author = document.getElementById("c-author").value.trim();
   const content = document.getElementById("c-content").value.trim();
   const turnstileToken = document.querySelector('[name="cf-turnstile-response"]')?.value || "";
   if (!content) return;
@@ -394,7 +439,6 @@ async function submitComment(e, postId, formLoadedAt) {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         postId,
-        author,
         content,
         website,
         elapsedMs: Date.now() - (formLoadedAt || 0),
@@ -531,8 +575,12 @@ Promise.all([
   fetch("/site.config.json")
     .then((r) => (r.ok ? r.json() : null))
     .catch(() => null),
-]).then(([posts, cfg]) => {
+  fetch("/api/auth/me")
+    .then((r) => (r.ok ? r.json() : null))
+    .catch(() => null),
+]).then(([posts, cfg, auth]) => {
   state.posts = posts;
+  state.user = auth?.user || null;
   if (cfg) {
     state.config = { ...state.config, ...cfg };
     document.title = state.config.title || document.title;
